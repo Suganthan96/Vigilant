@@ -1,0 +1,40 @@
+{
+  "name": "vigilant-backend",
+  "version": "1.0.0",
+  "description": "Vigilant Security Protocol - Backend Services",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "compute-schema": "tsx scripts/compute-schema-id.ts",
+    "register-schema": "tsx scripts/register-schema.ts",
+    "test-encode": "tsx scripts/encode-decode.ts"
+  },
+  "keywords": [
+    "vigilant",
+    "web3",
+    "security",
+    "somnia",
+    "mempool",
+    "protection"
+  ],
+  "author": "Vigilant Team",
+  "license": "MIT",
+  "dependencies": {
+    "@somnia-chain/streams": "^0.9.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "viem": "^2.37.13",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
