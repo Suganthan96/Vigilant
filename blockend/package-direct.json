@@ -1,0 +1,12 @@
+{
+  "name": "blockend-deploy",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "node deploy-direct.js"
+  },
+  "dependencies": {
+    "ethers": "^6.8.0",
+    "solc": "^0.8.20"
+  }
+}

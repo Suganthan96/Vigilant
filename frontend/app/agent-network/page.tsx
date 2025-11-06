@@ -1,334 +1,381 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreHorizontal, MapPin, Clock, Shield } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Shield, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  Activity, 
+  Zap,
+  Eye,
+  Search,
+  Filter
+} from "lucide-react"
+
+interface VerificationTask {
+  id: string
+  transactionHash: string
+  progress: number
+  riskScore: number
+  maxRisk: number
+  status: 'pending' | 'verifying' | 'completed' | 'failed'
+  layers: {
+    name: string
+    status: 'completed' | 'pending' | 'running'
+    risk: number
+  }[]
+  threatsDetected: number
+  estimatedTime: number
+  startTime: Date
+}
 
 export default function AgentNetworkPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedAgent, setSelectedAgent] = useState(null)
+  const [verificationTasks, setVerificationTasks] = useState<VerificationTask[]>([
+    {
+      id: "VT-001",
+      transactionHash: "0xABC123...",
+      progress: 67,
+      riskScore: 25,
+      maxRisk: 100,
+      status: 'verifying',
+      layers: [
+        { name: "Basic Simulation", status: 'completed', risk: 10 },
+        { name: "Mempool Analysis", status: 'completed', risk: 30 },
+        { name: "Pattern Matching", status: 'running', risk: 0 },
+        { name: "Behavioral Analysis", status: 'pending', risk: 0 },
+        { name: "Approval Check", status: 'pending', risk: 0 }
+      ],
+      threatsDetected: 0,
+      estimatedTime: 2,
+      startTime: new Date(Date.now() - 8000)
+    },
+    {
+      id: "VT-002", 
+      transactionHash: "0xDEF456...",
+      progress: 100,
+      riskScore: 8,
+      maxRisk: 100,
+      status: 'completed',
+      layers: [
+        { name: "Basic Simulation", status: 'completed', risk: 5 },
+        { name: "Mempool Analysis", status: 'completed', risk: 8 },
+        { name: "Pattern Matching", status: 'completed', risk: 3 },
+        { name: "Behavioral Analysis", status: 'completed', risk: 2 },
+        { name: "Approval Check", status: 'completed', risk: 0 }
+      ],
+      threatsDetected: 0,
+      estimatedTime: 0,
+      startTime: new Date(Date.now() - 30000)
+    }
+  ])
 
-  const agents = [
-    {
-      id: "G-078W",
-      name: "VENGEFUL SPIRIT",
-      status: "active",
-      location: "Berlin",
-      lastSeen: "2 min ago",
-      missions: 47,
-      risk: "high",
-    },
-    {
-      id: "G-079X",
-      name: "OBSIDIAN SENTINEL",
-      status: "standby",
-      location: "Tokyo",
-      lastSeen: "15 min ago",
-      missions: 32,
-      risk: "medium",
-    },
-    {
-      id: "G-080Y",
-      name: "GHOSTLY FURY",
-      status: "active",
-      location: "Cairo",
-      lastSeen: "1 min ago",
-      missions: 63,
-      risk: "high",
-    },
-    {
-      id: "G-081Z",
-      name: "CURSED REVENANT",
-      status: "compromised",
-      location: "Moscow",
-      lastSeen: "3 hours ago",
-      missions: 28,
-      risk: "critical",
-    },
-    {
-      id: "G-082A",
-      name: "VENOMOUS SHADE",
-      status: "active",
-      location: "London",
-      lastSeen: "5 min ago",
-      missions: 41,
-      risk: "medium",
-    },
-    {
-      id: "G-083B",
-      name: "MYSTIC ENIGMA",
-      status: "training",
-      location: "Base Alpha",
-      lastSeen: "1 day ago",
-      missions: 12,
-      risk: "low",
-    },
-    {
-      id: "G-084C",
-      name: "WRAITH AVENGER",
-      status: "active",
-      location: "Paris",
-      lastSeen: "8 min ago",
-      missions: 55,
-      risk: "high",
-    },
-    {
-      id: "G-085D",
-      name: "SPECTRAL FURY",
-      status: "standby",
-      location: "Sydney",
-      lastSeen: "22 min ago",
-      missions: 38,
-      risk: "medium",
-    },
-  ]
+  const [simulatorStats, setSimulatorStats] = useState({
+    active: 247,
+    queued: 12,
+    completed: 1423,
+    avgTime: 4.2
+  })
 
-  const filteredAgents = agents.filter(
-    (agent) =>
-      agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.id.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  // Simulate real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVerificationTasks(prev => prev.map(task => {
+        if (task.status === 'verifying' && task.progress < 100) {
+          const newProgress = Math.min(task.progress + Math.random() * 10, 100)
+          const newStatus = newProgress >= 100 ? 'completed' : 'verifying'
+          
+          // Update layer statuses based on progress
+          const updatedLayers = task.layers.map((layer, index) => {
+            const layerThreshold = (index + 1) * 20
+            if (newProgress >= layerThreshold) {
+              return { ...layer, status: 'completed' as const }
+            } else if (newProgress >= layerThreshold - 15) {
+              return { ...layer, status: 'running' as const }
+            }
+            return layer
+          })
+
+          return {
+            ...task,
+            progress: newProgress,
+            status: newStatus,
+            layers: updatedLayers,
+            estimatedTime: Math.max(0, task.estimatedTime - 0.5)
+          }
+        }
+        return task
+      }))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-400'
+      case 'running': return 'text-orange-400' 
+      case 'pending': return 'text-neutral-500'
+      case 'failed': return 'text-red-400'
+      default: return 'text-neutral-400'
+    }
+  }
+
+  const getRiskColor = (risk: number) => {
+    if (risk < 20) return 'text-green-400'
+    if (risk < 50) return 'text-yellow-400'
+    if (risk < 80) return 'text-orange-400'
+    return 'text-red-400'
+  }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-wider">AGENT NETWORK</h1>
-          <p className="text-sm text-neutral-400">Manage and monitor field operatives</p>
+          <h1 className="text-2xl font-bold text-white">Agent Network</h1>
+          <p className="text-neutral-400">Transaction verification and simulator management</p>
         </div>
-        <div className="flex gap-2">
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">Deploy Agent</Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
+        <div className="flex items-center gap-4">
+          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+            {simulatorStats.active} Active Simulators
+          </Badge>
         </div>
       </div>
 
-      {/* Search and Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <Card className="lg:col-span-1 bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <Input
-                placeholder="Search agents..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-neutral-800 border-neutral-600 text-white placeholder-neutral-400"
-              />
+      {/* Simulator Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-neutral-900 border-neutral-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-400">Active Simulators</p>
+                <p className="text-2xl font-bold text-green-400">{simulatorStats.active}</p>
+              </div>
+              <Zap className="w-8 h-8 text-green-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-neutral-400 tracking-wider">ACTIVE AGENTS</p>
-                <p className="text-2xl font-bold text-white font-mono">847</p>
+                <p className="text-sm font-medium text-neutral-400">Queued Tasks</p>
+                <p className="text-2xl font-bold text-yellow-400">{simulatorStats.queued}</p>
               </div>
-              <Shield className="w-8 h-8 text-white" />
+              <Clock className="w-8 h-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-neutral-400 tracking-wider">COMPROMISED</p>
-                <p className="text-2xl font-bold text-red-500 font-mono">3</p>
+                <p className="text-sm font-medium text-neutral-400">Completed Today</p>
+                <p className="text-2xl font-bold text-blue-400">{simulatorStats.completed}</p>
               </div>
-              <Shield className="w-8 h-8 text-red-500" />
+              <CheckCircle className="w-8 h-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-neutral-400 tracking-wider">IN TRAINING</p>
-                <p className="text-2xl font-bold text-orange-500 font-mono">23</p>
+                <p className="text-sm font-medium text-neutral-400">Avg Time</p>
+                <p className="text-2xl font-bold text-white">{simulatorStats.avgTime}s</p>
               </div>
-              <Shield className="w-8 h-8 text-orange-500" />
+              <Activity className="w-8 h-8 text-white" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Agent List */}
-      <Card className="bg-neutral-900 border-neutral-700">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-neutral-300 tracking-wider">AGENT ROSTER</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-neutral-700">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">AGENT ID</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">CODENAME</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">STATUS</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">LOCATION</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">LAST SEEN</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">MISSIONS</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">RISK</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-neutral-400 tracking-wider">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAgents.map((agent, index) => (
-                  <tr
-                    key={agent.id}
-                    className={`border-b border-neutral-800 hover:bg-neutral-800 transition-colors cursor-pointer ${
-                      index % 2 === 0 ? "bg-neutral-900" : "bg-neutral-850"
-                    }`}
-                    onClick={() => setSelectedAgent(agent)}
-                  >
-                    <td className="py-3 px-4 text-sm text-white font-mono">{agent.id}</td>
-                    <td className="py-3 px-4 text-sm text-white">{agent.name}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            agent.status === "active"
-                              ? "bg-white"
-                              : agent.status === "standby"
-                                ? "bg-neutral-500"
-                                : agent.status === "training"
-                                  ? "bg-orange-500"
-                                  : "bg-red-500"
-                          }`}
-                        ></div>
-                        <span className="text-xs text-neutral-300 uppercase tracking-wider">{agent.status}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3 text-neutral-400" />
-                        <span className="text-sm text-neutral-300">{agent.location}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3 text-neutral-400" />
-                        <span className="text-sm text-neutral-300 font-mono">{agent.lastSeen}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-white font-mono">{agent.missions}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`text-xs px-2 py-1 rounded uppercase tracking-wider ${
-                          agent.risk === "critical"
-                            ? "bg-red-500/20 text-red-500"
-                            : agent.risk === "high"
-                              ? "bg-orange-500/20 text-orange-500"
-                              : agent.risk === "medium"
-                                ? "bg-neutral-500/20 text-neutral-300"
-                                : "bg-white/20 text-white"
-                        }`}
-                      >
-                        {agent.risk}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Agent Detail Modal */}
-      {selectedAgent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="bg-neutral-900 border-neutral-700 w-full max-w-2xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold text-white tracking-wider">{selectedAgent.name}</CardTitle>
-                <p className="text-sm text-neutral-400 font-mono">{selectedAgent.id}</p>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => setSelectedAgent(null)}
-                className="text-neutral-400 hover:text-white"
-              >
-                ✕
-              </Button>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Active Verification Tasks */}
+        <div className="xl:col-span-2 space-y-6">
+          <Card className="bg-neutral-900 border-neutral-700">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-orange-400" />
+                Transaction Verification Progress
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-neutral-400 tracking-wider mb-1">STATUS</p>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        selectedAgent.status === "active"
-                          ? "bg-white"
-                          : selectedAgent.status === "standby"
-                            ? "bg-neutral-500"
-                            : selectedAgent.status === "training"
-                              ? "bg-orange-500"
-                              : "bg-red-500"
-                      }`}
-                    ></div>
-                    <span className="text-sm text-white uppercase tracking-wider">{selectedAgent.status}</span>
+              {verificationTasks.map((task) => (
+                <Card key={task.id} className="bg-neutral-800 border-neutral-600">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          task.status === 'completed' ? 'bg-green-400' :
+                          task.status === 'verifying' ? 'bg-orange-400 animate-pulse' :
+                          task.status === 'failed' ? 'bg-red-400' : 'bg-neutral-500'
+                        }`} />
+                        <span className="text-sm font-mono text-white">{task.transactionHash}</span>
+                      </div>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          task.status === 'completed' ? 'text-green-400 border-green-500/20' :
+                          task.status === 'verifying' ? 'text-orange-400 border-orange-500/20' :
+                          task.status === 'failed' ? 'text-red-400 border-red-500/20' :
+                          'text-neutral-400 border-neutral-500/20'
+                        }`}
+                      >
+                        {task.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Simulator Progress:</span>
+                        <span className="text-white">
+                          {Math.floor(task.progress * task.layers.length / 100)}/{task.layers.length} Complete
+                        </span>
+                      </div>
+                      <Progress value={task.progress} className="h-2" />
+                    </div>
+
+                    {/* Risk Score */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Risk Score:</span>
+                        <span className={`font-bold ${getRiskColor(task.riskScore)}`}>
+                          {task.riskScore}/{task.maxRisk}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={(task.riskScore / task.maxRisk) * 100} 
+                        className="h-2"
+                      />
+                    </div>
+
+                    {/* Analysis Layers */}
+                    <div className="space-y-2">
+                      <span className="text-sm text-neutral-400">Analysis Layers:</span>
+                      <div className="space-y-1">
+                        {task.layers.map((layer, index) => (
+                          <div key={index} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              {layer.status === 'completed' ? (
+                                <CheckCircle className="w-3 h-3 text-green-400" />
+                              ) : layer.status === 'running' ? (
+                                <div className="w-3 h-3 border border-orange-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Clock className="w-3 h-3 text-neutral-500" />
+                              )}
+                              <span className={getStatusColor(layer.status)}>{layer.name}</span>
+                            </div>
+                            {layer.status === 'completed' && (
+                              <span className={`${getRiskColor(layer.risk)}`}>
+                                (Risk: {layer.risk})
+                              </span>
+                            )}
+                            {layer.status === 'running' && (
+                              <span className="text-orange-400">(Running...)</span>
+                            )}
+                            {layer.status === 'pending' && (
+                              <span className="text-neutral-500">(Pending...)</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Threats and Time */}
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-700">
+                      <div className="text-xs">
+                        <span className="text-neutral-400">Detected Threats: </span>
+                        <span className={task.threatsDetected > 0 ? 'text-red-400' : 'text-green-400'}>
+                          {task.threatsDetected}
+                        </span>
+                      </div>
+                      {task.status === 'verifying' && (
+                        <div className="text-xs text-neutral-400">
+                          Estimated time: {Math.max(0, task.estimatedTime)} seconds remaining
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Live Status */}
+                    {task.status === 'verifying' && (
+                      <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/20 rounded">
+                        <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+                        <span className="text-xs text-red-400">🔴 Live: Monitoring mempool...</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Simulator Management Sidebar */}
+        <div className="space-y-6">
+          <Card className="bg-neutral-900 border-neutral-700">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-neutral-300 tracking-wider">
+                SIMULATOR MANAGEMENT
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                Deploy New Simulator
+              </Button>
+              <Button variant="outline" className="w-full border-neutral-600">
+                Scale Simulator Pool
+              </Button>
+              <Button variant="outline" className="w-full border-neutral-600">
+                View Performance Metrics
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-neutral-900 border-neutral-700">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-neutral-300 tracking-wider">
+                RECENT COMPLETIONS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {[
+                  { hash: "0x123...", time: "2s ago", risk: 5, status: "safe" },
+                  { hash: "0x456...", time: "8s ago", risk: 12, status: "safe" },
+                  { hash: "0x789...", time: "15s ago", risk: 78, status: "blocked" },
+                  { hash: "0xABC...", time: "23s ago", risk: 3, status: "safe" },
+                ].map((completion, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        completion.status === 'safe' ? 'bg-green-400' : 'bg-red-400'
+                      }`} />
+                      <span className="text-white font-mono">{completion.hash}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={getRiskColor(completion.risk)}>{completion.risk}</span>
+                      <span className="text-neutral-500">{completion.time}</span>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-400 tracking-wider mb-1">LOCATION</p>
-                  <p className="text-sm text-white">{selectedAgent.location}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-400 tracking-wider mb-1">MISSIONS COMPLETED</p>
-                  <p className="text-sm text-white font-mono">{selectedAgent.missions}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-400 tracking-wider mb-1">RISK LEVEL</p>
-                  <span
-                    className={`text-xs px-2 py-1 rounded uppercase tracking-wider ${
-                      selectedAgent.risk === "critical"
-                        ? "bg-red-500/20 text-red-500"
-                        : selectedAgent.risk === "high"
-                          ? "bg-orange-500/20 text-orange-500"
-                          : selectedAgent.risk === "medium"
-                            ? "bg-neutral-500/20 text-neutral-300"
-                            : "bg-white/20 text-white"
-                    }`}
-                  >
-                    {selectedAgent.risk}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white">Assign Mission</Button>
-                <Button
-                  variant="outline"
-                  className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
-                >
-                  View History
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
-                >
-                  Send Message
-                </Button>
+                ))}
               </div>
             </CardContent>
           </Card>
         </div>
-      )}
+      </div>
     </div>
   )
 }
