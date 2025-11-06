@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Shield, DollarSign, AlertTriangle, Zap, TrendingUp, Clock, CheckCircle, XCircle } from "lucide-react"
+import { Shield, DollarSign, AlertTriangle, Zap, TrendingUp, Clock, CheckCircle, XCircle, Radio } from "lucide-react"
+import VigilantIntentSubmitter from "@/components/VigilantIntentSubmitter"
+import ContractDebugger from "@/components/ContractDebugger"
+import { useVigilantStreams } from "@/hooks/useVigilantStreams"
 
 export default function CommandCenterPage() {
   const { authenticated } = usePrivy()
@@ -15,6 +18,7 @@ export default function CommandCenterPage() {
   const [verificationProgress, setVerificationProgress] = useState(0)
   
   const wallet = wallets[0]
+  const { realTimeUpdates, streamsConnected } = useVigilantStreams()
 
   return (
     <div className="p-6 space-y-6">
@@ -25,7 +29,7 @@ export default function CommandCenterPage() {
         <div className="xl:col-span-8 space-y-6">
           
           {/* Stats Cards Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Value Saved */}
             <Card className="bg-neutral-900 border-neutral-700">
               <CardContent className="p-6">
@@ -53,22 +57,6 @@ export default function CommandCenterPage() {
                   </div>
                   <div className="p-3 bg-red-500/10 rounded-full">
                     <AlertTriangle className="w-6 h-6 text-red-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Active Simulators */}
-            <Card className="bg-neutral-900 border-neutral-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-400">Simulators</p>
-                    <p className="text-2xl font-bold text-blue-400">247</p>
-                    <p className="text-xs text-neutral-500">Currently active</p>
-                  </div>
-                  <div className="p-3 bg-blue-500/10 rounded-full">
-                    <Zap className="w-6 h-6 text-blue-400" />
                   </div>
                 </div>
               </CardContent>
@@ -122,45 +110,84 @@ export default function CommandCenterPage() {
                   </div>
                 </div>
               ) : activeTab === "swap" ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-neutral-800 rounded-lg">
-                      <label className="block text-sm font-medium text-neutral-300 mb-2">From Token</label>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-bold">ETH</span>
-                        </div>
-                        <input
-                          type="number"
-                          placeholder="0.0"
-                          className="flex-1 bg-neutral-700 border border-neutral-600 rounded px-3 py-2 text-white"
-                        />
+                <div className="space-y-6">
+                  <VigilantIntentSubmitter />
+                  <ContractDebugger />
+                  
+                  {/* Real-time Data Streams Section - Always Visible */}
+                  <Card className="bg-neutral-900 border-neutral-700">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Radio className="h-5 w-5 text-green-500 animate-pulse" />
+                        🔴 LIVE: Real-time Updates via Somnia Data Streams
+                        {streamsConnected && (
+                          <Badge variant="outline" className="text-green-500 border-green-500 animate-pulse">
+                            REAL STREAMS
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {realTimeUpdates.length > 0 ? (
+                          realTimeUpdates.map((update, index) => (
+                            <div key={index} className="p-3 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                  {update.status === 'verifying' ? (
+                                    <div className="animate-pulse w-3 h-3 bg-blue-500 rounded-full" />
+                                  ) : update.status === 'safe' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                  )}
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-medium text-white">
+                                      Intent: {update.intentId.slice(0, 10)}...
+                                    </p>
+                                    <p className="text-xs text-neutral-400">
+                                      {update.timestamp} - Status: {update.status}
+                                    </p>
+                                    {update.riskScore !== undefined && (
+                                      <p className="text-xs text-green-400">
+                                        Risk Score: {update.riskScore}/100
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                {update.txHash && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-blue-400 hover:text-blue-300 h-6 px-2 text-xs"
+                                    onClick={() => window.open(`https://explorer.somnia.network/tx/${update.txHash}`, '_blank')}
+                                  >
+                                    View Transaction
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <Radio className="w-6 h-6 text-blue-400 animate-pulse" />
+                            </div>
+                            <p className="text-sm text-neutral-400 mb-2">Waiting for real-time updates...</p>
+                            <p className="text-xs text-neutral-500">
+                              Submit an intent above to see live stream activity
+                            </p>
+                            {streamsConnected && (
+                              <div className="flex items-center justify-center gap-1 mt-2 text-xs text-green-500">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                <span>Connected to Somnia Data Streams</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div className="p-4 bg-neutral-800 rounded-lg">
-                      <label className="block text-sm font-medium text-neutral-300 mb-2">To Token</label>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-bold">USDC</span>
-                        </div>
-                        <input
-                          type="number"
-                          placeholder="0.0"
-                          className="flex-1 bg-neutral-700 border border-neutral-600 rounded px-3 py-2 text-white"
-                          readOnly
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-neutral-800 rounded-lg">
-                    <span className="text-sm text-neutral-300">Protection Level</span>
-                    <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-                      Maximum
-                    </Badge>
-                  </div>
-                  <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white">
-                    Execute Protected Swap
-                  </Button>
+                    </CardContent>
+                  </Card>
                 </div>
               ) : (
                 <div className="space-y-4">

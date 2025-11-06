@@ -10,8 +10,8 @@ import { useState } from 'react'
 
 // Somnia Network Chain Configuration
 const somniaNetwork = {
-  id: 50311,
-  name: 'Somnia Devnet',
+  id: 50312,
+  name: 'Somnia Network',
   nativeCurrency: {
     decimals: 18,
     name: 'STT',
@@ -25,7 +25,7 @@ const somniaNetwork = {
   blockExplorers: {
     default: {
       name: 'Somnia Explorer',
-      url: 'https://somnia-devnet.socialscan.io/',
+      url: 'https://shannon-explorer.somnia.network/',
     },
   },
 } as const

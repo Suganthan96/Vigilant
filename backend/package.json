@@ -14,7 +14,11 @@
     "simulator": "node SimulatorNode.js",
     "monitor": "node StateMonitor.js",
     "mempool": "node MempoolWatcher.js",
-    "services": "concurrently \"npm run simulator\" \"npm run monitor\" \"npm run mempool\""
+    "services": "concurrently \"npm run simulator\" \"npm run monitor\" \"npm run mempool\"",
+    "register-vigilant-schemas": "tsx scripts/register-vigilant-schemas.ts",
+    "vigilant-demo": "tsx scripts/vigilant-demo.ts",
+    "vigilant-simulator": "tsx src/simulatorNode.ts",
+    "setup-streams": "bash setup-vigilant-streams.sh"
   },
   "keywords": [
     "vigilant",

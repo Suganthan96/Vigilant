@@ -20,6 +20,11 @@ async function main() {
       // Compute schema ID
       const schemaId = await sdk.streams.computeSchemaId(schemaConfig.schema)
       
+      if (!schemaId) {
+        console.error(`❌ Failed to compute schema ID for ${name}`)
+        continue
+      }
+      
       // Check if already registered
       const isRegistered = await sdk.streams.isDataSchemaRegistered(schemaId)
       
@@ -33,7 +38,7 @@ async function main() {
       const txHash = await sdk.streams.registerDataSchemas([{
         id: schemaConfig.id,
         schema: schemaConfig.schema,
-        parentSchemaId: zeroBytes32 // Root schema
+        parentSchemaId: zeroBytes32 as `0x${string}` // Root schema
       }], true) // Ignore if already registered
       
       if (!txHash) {
@@ -44,7 +49,7 @@ async function main() {
       console.log(`📋 Transaction hash: ${txHash}`)
       
       // Wait for confirmation
-      const receipt = await waitForTransactionReceipt(publicClient, { hash: txHash })
+      const receipt = await waitForTransactionReceipt(publicClient, { hash: txHash as `0x${string}` })
       console.log(`✅ ${name} schema registered in block: ${receipt.blockNumber}`)
       console.log(`   Schema ID: ${schemaId}`)
       console.log('')

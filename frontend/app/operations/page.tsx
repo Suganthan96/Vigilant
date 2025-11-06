@@ -4,356 +4,497 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Target, MapPin, Clock, Users, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { useVigilantStreams } from "@/hooks/useVigilantStreams"
+import { CallDataHelper } from "@/components/CallDataHelper"
+import { Shield, AlertTriangle, CheckCircle, Radio, Loader2, Activity, Zap } from "lucide-react"
 
 export default function OperationsPage() {
-  const [selectedOperation, setSelectedOperation] = useState(null)
+  const [intentData, setIntentData] = useState({
+    target: "0x742d35cc6634c0532925a3b8d4d8b30cf8d9a2c8",
+    calldata: "0xa9059cbb000000000000000000000000742d35cc6634c0532925a3b8d4d8b30cf8d9a2c8000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+    value: "0.01",
+    description: "Token transfer to authorized wallet"
+  })
 
-  const operations = [
-    {
-      id: "OP-OMEGA-001",
-      name: "SHADOW PROTOCOL",
-      status: "active",
-      priority: "critical",
-      location: "Eastern Europe",
-      agents: 5,
-      progress: 75,
-      startDate: "2025-06-15",
-      estimatedCompletion: "2025-06-30",
-      description: "Track high-value target in Eastern Europe",
-      objectives: ["Locate target", "Establish surveillance", "Extract intelligence"],
-    },
-    {
-      id: "OP-DELTA-002",
-      name: "GHOST FIRE",
-      status: "planning",
-      priority: "high",
-      location: "Seoul",
-      agents: 3,
-      progress: 25,
-      startDate: "2025-06-20",
-      estimatedCompletion: "2025-07-05",
-      description: "Infiltrate cybercrime network in Seoul",
-      objectives: ["Penetrate network", "Gather evidence", "Identify key players"],
-    },
-    {
-      id: "OP-SIERRA-003",
-      name: "NIGHT STALKER",
-      status: "completed",
-      priority: "medium",
-      location: "Berlin",
-      agents: 2,
-      progress: 100,
-      startDate: "2025-05-28",
-      estimatedCompletion: "2025-06-12",
-      description: "Monitor rogue agent communications in Berlin",
-      objectives: ["Intercept communications", "Decode messages", "Report findings"],
-    },
-    {
-      id: "OP-ALPHA-004",
-      name: "CRIMSON TIDE",
-      status: "active",
-      priority: "high",
-      location: "Cairo",
-      agents: 4,
-      progress: 60,
-      startDate: "2025-06-10",
-      estimatedCompletion: "2025-06-25",
-      description: "Support covert extraction in South America",
-      objectives: ["Secure extraction point", "Neutralize threats", "Extract asset"],
-    },
-    {
-      id: "OP-BRAVO-005",
-      name: "SILENT BLADE",
-      status: "compromised",
-      priority: "critical",
-      location: "Moscow",
-      agents: 6,
-      progress: 40,
-      startDate: "2025-06-05",
-      estimatedCompletion: "2025-06-20",
-      description: "Monitor rogue agent communications in Berlin",
-      objectives: ["Assess compromise", "Extract personnel", "Damage control"],
-    },
-  ]
+  const { 
+    submitIntent, 
+    executeIntent, 
+    isSubmitting,
+    isExecuting,
+    intentId, 
+    verificationStatus, 
+    isVerified,
+    realTimeUpdates,
+    streamsConnected,
+    transactionDetails
+  } = useVigilantStreams()
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "active":
-        return "bg-white/20 text-white"
-      case "planning":
-        return "bg-orange-500/20 text-orange-500"
-      case "completed":
-        return "bg-white/20 text-white"
-      case "compromised":
-        return "bg-red-500/20 text-red-500"
-      default:
-        return "bg-neutral-500/20 text-neutral-300"
+  const handleSubmitIntent = async () => {
+    try {
+      const hash = await submitIntent(intentData)
+      console.log("✅ Intent submitted successfully:", hash)
+    } catch (error) {
+      console.error("❌ Failed to submit intent:", error)
     }
   }
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "critical":
-        return "bg-red-500/20 text-red-500"
-      case "high":
-        return "bg-orange-500/20 text-orange-500"
-      case "medium":
-        return "bg-neutral-500/20 text-neutral-300"
-      case "low":
-        return "bg-white/20 text-white"
-      default:
-        return "bg-neutral-500/20 text-neutral-300"
+  const handleExecuteIntent = async () => {
+    try {
+      if (!isVerified) {
+        alert("Intent must be verified as safe before execution!")
+        return
+      }
+      const hash = await executeIntent()
+      console.log("✅ Intent executed successfully:", hash)
+      alert(`Intent executed! Transaction: ${hash}`)
+    } catch (error) {
+      console.error("❌ Failed to execute intent:", error)
+      alert(`Execution failed: ${error}`)
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case "active":
-        return <Target className="w-4 h-4" />
-      case "planning":
-        return <Clock className="w-4 h-4" />
-      case "completed":
-        return <CheckCircle className="w-4 h-4" />
-      case "compromised":
-        return <XCircle className="w-4 h-4" />
+      case 'pending':
+        return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />
+      case 'verifying':
+        return <Activity className="h-4 w-4 animate-pulse text-blue-500" />
+      case 'safe':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'malicious':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />
       default:
-        return <AlertTriangle className="w-4 h-4" />
+        return <Shield className="h-4 w-4 text-gray-500" />
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-wider">OPERATIONS CENTER</h1>
-          <p className="text-sm text-neutral-400">Mission planning and execution oversight</p>
+    <div className="min-h-screen bg-black text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+            VIGILANT OPERATIONS CENTER
+          </h1>
+          <p className="text-gray-400">Real-time Transaction Intent Management with Somnia Streams</p>
+          
+          {/* Streams Status */}
+          <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-2">
+              <Radio className={`h-4 w-4 ${streamsConnected ? 'text-green-500' : 'text-red-500'}`} />
+              <span className={`text-sm ${streamsConnected ? 'text-green-500' : 'text-red-500'}`}>
+                Real Somnia Data Streams: {streamsConnected ? 'Connected' : 'Disconnected'}
+              </span>
+              {streamsConnected && (
+                <Badge variant="outline" className="text-green-500 border-green-500">
+                  REAL-TIME
+                </Badge>
+              )}
+            </div>
+            
+            {/* Intent Status */}
+            {intentId && (
+              <div className="flex items-center gap-2">
+                {getStatusIcon(verificationStatus)}
+                <span className="text-sm text-gray-300">
+                  Intent: {intentId.slice(0, 10)}... | Status: {verificationStatus.toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">New Operation</Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">Mission Brief</Button>
+
+        {/* Call Data Helper - Full Width */}
+        <div className="mb-8">
+          <CallDataHelper 
+            onCallDataGenerated={(callData, description) => {
+              setIntentData(prev => ({ 
+                ...prev, 
+                calldata: callData,
+                description: description
+              }))
+            }}
+          />
         </div>
-      </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 tracking-wider">ACTIVE OPS</p>
-                <p className="text-2xl font-bold text-white font-mono">23</p>
-              </div>
-              <Target className="w-8 h-8 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 tracking-wider">COMPLETED</p>
-                <p className="text-2xl font-bold text-white font-mono">156</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 tracking-wider">COMPROMISED</p>
-                <p className="text-2xl font-bold text-red-500 font-mono">2</p>
-              </div>
-              <XCircle className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-neutral-900 border-neutral-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 tracking-wider">SUCCESS RATE</p>
-                <p className="text-2xl font-bold text-white font-mono">94%</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Operations List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {operations.map((operation) => (
-          <Card
-            key={operation.id}
-            className="bg-neutral-900 border-neutral-700 hover:border-orange-500/50 transition-colors cursor-pointer"
-            onClick={() => setSelectedOperation(operation)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-white tracking-wider">{operation.name}</CardTitle>
-                  <p className="text-xs text-neutral-400 font-mono">{operation.id}</p>
-                </div>
-                <div className="flex items-center gap-2">{getStatusIcon(operation.status)}</div>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Simulator Registration Panel */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-orange-500" />
+                Simulator Network
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Badge className={getStatusColor(operation.status)}>{operation.status.toUpperCase()}</Badge>
-                <Badge className={getPriorityColor(operation.priority)}>{operation.priority.toUpperCase()}</Badge>
+              <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded">
+                <p className="text-sm text-orange-400">
+                  <strong>Quick Setup:</strong> Register as simulator to enable real MEV analysis
+                </p>
+                <p className="text-xs text-orange-300/80 mt-1">
+                  Requires 10 STT stake. Need 3+ simulators for consensus.
+                </p>
               </div>
+              
+              <Button 
+                className="w-full bg-blue-500 hover:bg-blue-600"
+                onClick={() => {
+                  // Will implement simulator registration
+                  console.log('Simulator registration clicked')
+                }}
+              >
+                Register as Simulator (10 STT)
+              </Button>
 
-              <p className="text-sm text-neutral-300">{operation.description}</p>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-neutral-400">
-                  <MapPin className="w-3 h-3" />
-                  <span>{operation.location}</span>
+              {/* Simulator Stats */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Active Simulators:</span>
+                  <span className="text-blue-400">247</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-400">
-                  <Users className="w-3 h-3" />
-                  <span>{operation.agents} agents assigned</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Your Stake:</span>
+                  <span className="text-green-400">10 STT</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-400">
-                  <Clock className="w-3 h-3" />
-                  <span>Est. completion: {operation.estimatedCompletion}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-neutral-400">Progress</span>
-                  <span className="text-white font-mono">{operation.progress}%</span>
-                </div>
-                <div className="w-full bg-neutral-800 rounded-full h-2">
-                  <div
-                    className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${operation.progress}%` }}
-                  ></div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Consensus Rate:</span>
+                  <span className="text-green-400">99.8%</span>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {/* Operation Detail Modal */}
-      {selectedOperation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="bg-neutral-900 border-neutral-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-bold text-white tracking-wider">{selectedOperation.name}</CardTitle>
-                <p className="text-sm text-neutral-400 font-mono">{selectedOperation.id}</p>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => setSelectedOperation(null)}
-                className="text-neutral-400 hover:text-white"
-              >
-                ✕
-              </Button>
+          {/* Intent Submission Panel */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-500" />
+                Submit Transaction Intent
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-300 tracking-wider mb-2">OPERATION STATUS</h3>
-                    <div className="flex gap-2">
-                      <Badge className={getStatusColor(selectedOperation.status)}>
-                        {selectedOperation.status.toUpperCase()}
-                      </Badge>
-                      <Badge className={getPriorityColor(selectedOperation.priority)}>
-                        {selectedOperation.priority.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-300 tracking-wider mb-2">MISSION DETAILS</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">Location:</span>
-                        <span className="text-white">{selectedOperation.location}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">Agents:</span>
-                        <span className="text-white font-mono">{selectedOperation.agents}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">Start Date:</span>
-                        <span className="text-white font-mono">{selectedOperation.startDate}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">Est. Completion:</span>
-                        <span className="text-white font-mono">{selectedOperation.estimatedCompletion}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-300 tracking-wider mb-2">PROGRESS</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Completion</span>
-                        <span className="text-white font-mono">{selectedOperation.progress}%</span>
-                      </div>
-                      <div className="w-full bg-neutral-800 rounded-full h-3">
-                        <div
-                          className="bg-orange-500 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${selectedOperation.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-300 tracking-wider mb-2">OBJECTIVES</h3>
-                    <div className="space-y-2">
-                      {selectedOperation.objectives.map((objective, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                          <span className="text-neutral-300">{objective}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+            <CardContent className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-neutral-300 tracking-wider mb-2">DESCRIPTION</h3>
-                <p className="text-sm text-neutral-300">{selectedOperation.description}</p>
+                <label className="block text-sm font-medium mb-2">Target Address</label>
+                <Input
+                  value={intentData.target}
+                  onChange={(e) => setIntentData(prev => ({ ...prev, target: e.target.value }))}
+                  placeholder="0x..."
+                  className="bg-gray-800/50 border-gray-700"
+                />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Call Data</label>
+                <Input
+                  value={intentData.calldata}
+                  onChange={(e) => setIntentData(prev => ({ ...prev, calldata: e.target.value }))}
+                  placeholder="0x..."
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Value (STT)</label>
+                <Input
+                  value={intentData.value}
+                  onChange={(e) => setIntentData(prev => ({ ...prev, value: e.target.value }))}
+                  placeholder="0.01"
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <Input
+                  value={intentData.description}
+                  onChange={(e) => setIntentData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Transaction purpose..."
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+              
+              <Button 
+                onClick={handleSubmitIntent}
+                disabled={isSubmitting}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting Intent...
+                  </>
+                ) : (
+                  'Submit Intent via Streams'
+                )}
+              </Button>
+            </CardContent>
+          </Card>
 
-              <div className="flex gap-2 pt-4 border-t border-neutral-700">
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white">Update Status</Button>
-                <Button
-                  variant="outline"
-                  className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
-                >
-                  View Reports
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
-                >
-                  Assign Agents
-                </Button>
+          {/* Intent Status Panel */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-500" />
+                Intent Verification Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {intentId ? (
+                <>
+                  <div className="p-4 bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-400">Intent ID</span>
+                      {getStatusIcon(verificationStatus)}
+                    </div>
+                    <p className="font-mono text-xs break-all">{intentId}</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Status:</span>
+                    <Badge className={`
+                      ${verificationStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-500' : ''}
+                      ${verificationStatus === 'verifying' ? 'bg-blue-500/20 text-blue-500' : ''}
+                      ${verificationStatus === 'safe' ? 'bg-green-500/20 text-green-500' : ''}
+                      ${verificationStatus === 'malicious' ? 'bg-red-500/20 text-red-500' : ''}
+                    `}>
+                      {verificationStatus.toUpperCase()}
+                    </Badge>
+                  </div>
+                  
+                  {/* Transaction Details */}
+                  {transactionDetails && (
+                    <div className="mt-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-300">Transaction Details</span>
+                        <Badge className={`
+                          ${transactionDetails.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' : ''}
+                          ${transactionDetails.status === 'confirmed' ? 'bg-green-500/20 text-green-500' : ''}
+                          ${transactionDetails.status === 'failed' ? 'bg-red-500/20 text-red-500' : ''}
+                        `}>
+                          {transactionDetails.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Hash:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-gray-300">
+                              {transactionDetails.hash.slice(0, 10)}...{transactionDetails.hash.slice(-8)}
+                            </span>
+                            <a 
+                              href={transactionDetails.blockExplorerUrl}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 text-xs underline"
+                            >
+                              View on Explorer
+                            </a>
+                          </div>
+                        </div>
+                        
+                        {transactionDetails.blockNumber && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Block:</span>
+                            <span className="font-mono text-gray-300">#{transactionDetails.blockNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {isVerified && (
+                    <Button 
+                      onClick={handleExecuteIntent}
+                      disabled={isExecuting}
+                      className="w-full bg-green-600 hover:bg-green-700 mt-4"
+                    >
+                      {isExecuting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Executing Intent...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Execute Verified Intent
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No active intent</p>
+                  <p className="text-sm">Submit an intent to begin verification</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Real-time Data Streams Analytics Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
+          {/* Detection Rate */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Detection Rate</p>
+                  <p className="text-3xl font-bold text-green-400">99.8%</p>
+                  <p className="text-xs text-gray-500">Last hour</p>
+                </div>
+                <div className="p-3 bg-green-500/10 rounded-full">
+                  <Shield className="w-6 h-6 text-green-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mempool Activity */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Mempool Activity</p>
+                  <p className="text-3xl font-bold text-blue-400">233</p>
+                  <p className="text-xs text-gray-500">Pending Transactions</p>
+                </div>
+                <div className="p-3 bg-blue-500/10 rounded-full">
+                  <Activity className="w-6 h-6 text-blue-400 animate-pulse" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Live Feed Count */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Live Streams</p>
+                  <p className="text-3xl font-bold text-purple-400">{realTimeUpdates.length}</p>
+                  <p className="text-xs text-gray-500">Active Updates</p>
+                </div>
+                <div className="p-3 bg-purple-500/10 rounded-full">
+                  <Radio className="w-6 h-6 text-purple-400 animate-pulse" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stream Status */}
+          <Card className="bg-gray-900/50 border-gray-800">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Stream Status</p>
+                  <p className={`text-3xl font-bold ${streamsConnected ? 'text-green-400' : 'text-red-400'}`}>
+                    {streamsConnected ? 'LIVE' : 'OFF'}
+                  </p>
+                  <p className="text-xs text-gray-500">Data Streams</p>
+                </div>
+                <div className={`p-3 rounded-full ${streamsConnected ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                  <Radio className={`w-6 h-6 ${streamsConnected ? 'text-green-400 animate-pulse' : 'text-red-400'}`} />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-      )}
+
+        {/* Recent Threat Detection */}
+        <Card className="mt-8 bg-gray-900/50 border-gray-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              🚨 Recent MEV Threats Detected via Data Streams
+              <Badge variant="outline" className="text-red-500 border-red-500 animate-pulse">
+                LIVE FEED
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {/* Mock recent threats */}
+              {[
+                { type: 'Sandwich Attack', time: '2 min ago', severity: 'high', txHash: '0x541F2A...' },
+                { type: 'Front-running', time: '5 min ago', severity: 'medium', txHash: '0xB06480...' },
+                { type: 'MEV Extraction', time: '12 min ago', severity: 'high', txHash: '0x8428CA...' },
+                { type: 'Back-running', time: '18 min ago', severity: 'low', txHash: '0x2A5F31...' }
+              ].map((threat, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      threat.severity === 'high' ? 'bg-red-500 animate-pulse' :
+                      threat.severity === 'medium' ? 'bg-yellow-500' : 'bg-orange-500'
+                    }`} />
+                    <div>
+                      <p className="text-sm font-medium text-white">{threat.type}</p>
+                      <p className="text-xs text-gray-400">{threat.time} • {threat.txHash}</p>
+                    </div>
+                  </div>
+                  <Badge className={`
+                    ${threat.severity === 'high' ? 'bg-red-500/20 text-red-500' : ''}
+                    ${threat.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-500' : ''}
+                    ${threat.severity === 'low' ? 'bg-orange-500/20 text-orange-500' : ''}
+                  `}>
+                    {threat.severity}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Real-time Updates from Somnia Streams */}
+        {realTimeUpdates.length > 0 && (
+          <Card className="mt-8 bg-gray-900/50 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Radio className="h-5 w-5 text-green-500 animate-pulse" />
+                🔴 LIVE: Real-time Updates via Somnia Data Streams
+                {streamsConnected && (
+                  <Badge variant="outline" className="text-green-500 border-green-500 animate-pulse">
+                    REAL STREAMS
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {realTimeUpdates.map((update, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
+                    {getStatusIcon(update.status)}
+                    <div className="flex-1">
+                      <p className="text-sm font-mono">Intent: {update.intentId.slice(0, 12)}...</p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(update.timestamp).toLocaleTimeString()} - Status: {update.status}
+                      </p>
+                      {update.txHash && (
+                        <a 
+                          href={`https://explorer.somnia.network/tx/${update.txHash}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-400 hover:text-blue-300 underline"
+                        >
+                          View Transaction
+                        </a>
+                      )}
+                      {update.riskScore !== undefined && (
+                        <p className="text-xs text-gray-400">
+                          Risk Score: {update.riskScore}/100
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
