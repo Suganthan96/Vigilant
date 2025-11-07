@@ -1,0 +1,6 @@
+{
+  "address": "0x0a85B911247995B6CC664BE84cDa6FDE9dE63F24",
+  "network": "somnia",
+  "chainId": 50312,
+  "note": "Contract deployed but transaction reverted - using generated address for testing"
+}

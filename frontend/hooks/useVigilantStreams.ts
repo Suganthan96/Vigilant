@@ -383,6 +383,23 @@ export function useVigilantStreams() {
       }
       setRealTimeUpdates(prev => [...prev, update])
 
+      // Notify the real simulator API about the new intent
+      try {
+        console.log('📡 Notifying simulator API about new intent:', extractedIntentId)
+        await fetch('http://localhost:3003/api/simulator/fetch-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            intentId: extractedIntentId,
+            user: account,
+            target: intent.target
+          })
+        })
+        console.log('✅ Simulator API notified successfully')
+      } catch (apiError) {
+        console.warn('⚠️ Failed to notify simulator API (non-critical):', apiError)
+      }
+
       // Start monitoring verification status
       monitorVerificationStatus(extractedIntentId, publicClient)
 

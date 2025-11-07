@@ -17,110 +17,163 @@ import {
   Filter
 } from "lucide-react"
 
-interface VerificationTask {
-  id: string
-  transactionHash: string
-  progress: number
-  riskScore: number
-  maxRisk: number
-  status: 'pending' | 'verifying' | 'completed' | 'failed'
-  layers: {
-    name: string
-    status: 'completed' | 'pending' | 'running'
-    risk: number
+interface RealVerificationTask {
+  intentId: string
+  user: string
+  target: string
+  status: 'analyzing' | 'completed' | 'not_found'
+  progress?: number
+  simulatorResults: {
+    simulator: string
+    riskScore: number
+    isRisky: boolean
+    timestamp: number
   }[]
-  threatsDetected: number
-  estimatedTime: number
-  startTime: Date
+  elapsedTime?: number
+  analysisTime?: number
+  consensus?: {
+    status: string
+    avgRiskScore: number
+    reason?: string
+  }
+}
+
+interface SimulatorStats {
+  totalSimulators: number
+  activeSimulators: number
+  totalAnalyzed: number
+  totalThreats: number
+  activeVerifications: number
+  completedVerifications: number
 }
 
 export default function AgentNetworkPage() {
-  const [verificationTasks, setVerificationTasks] = useState<VerificationTask[]>([
-    {
-      id: "VT-001",
-      transactionHash: "0xABC123...",
-      progress: 67,
-      riskScore: 25,
-      maxRisk: 100,
-      status: 'verifying',
-      layers: [
-        { name: "Basic Simulation", status: 'completed', risk: 10 },
-        { name: "Mempool Analysis", status: 'completed', risk: 30 },
-        { name: "Pattern Matching", status: 'running', risk: 0 },
-        { name: "Behavioral Analysis", status: 'pending', risk: 0 },
-        { name: "Approval Check", status: 'pending', risk: 0 }
-      ],
-      threatsDetected: 0,
-      estimatedTime: 2,
-      startTime: new Date(Date.now() - 8000)
-    },
-    {
-      id: "VT-002", 
-      transactionHash: "0xDEF456...",
-      progress: 100,
-      riskScore: 8,
-      maxRisk: 100,
-      status: 'completed',
-      layers: [
-        { name: "Basic Simulation", status: 'completed', risk: 5 },
-        { name: "Mempool Analysis", status: 'completed', risk: 8 },
-        { name: "Pattern Matching", status: 'completed', risk: 3 },
-        { name: "Behavioral Analysis", status: 'completed', risk: 2 },
-        { name: "Approval Check", status: 'completed', risk: 0 }
-      ],
-      threatsDetected: 0,
-      estimatedTime: 0,
-      startTime: new Date(Date.now() - 30000)
-    }
-  ])
-
-  const [simulatorStats, setSimulatorStats] = useState({
-    active: 247,
-    queued: 12,
-    completed: 1423,
-    avgTime: 4.2
+  const [verificationTasks, setVerificationTasks] = useState<RealVerificationTask[]>([])
+  const [simulatorStats, setSimulatorStats] = useState<SimulatorStats>({
+    totalSimulators: 0,
+    activeSimulators: 0,
+    totalAnalyzed: 0,
+    totalThreats: 0,
+    activeVerifications: 0,
+    completedVerifications: 0
   })
+  const [recentCompletions, setRecentCompletions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Simulate real-time updates
+  // Real API base URL
+  const API_BASE = 'http://localhost:3003/api/simulator'
+
+  // Fetch real data from API
+  const fetchRealData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Fetch simulator status and metrics
+      const statusResponse = await fetch(`${API_BASE}/status`)
+      if (!statusResponse.ok) throw new Error('Failed to fetch status')
+      const statusData = await statusResponse.json()
+      
+      setSimulatorStats(statusData.metrics)
+
+      // Fetch active verifications
+      const activeResponse = await fetch(`${API_BASE}/active`)
+      if (!activeResponse.ok) throw new Error('Failed to fetch active verifications')
+      const activeData = await activeResponse.json()
+      
+      setVerificationTasks(activeData.active || [])
+
+      // Fetch recent completions
+      const recentResponse = await fetch(`${API_BASE}/recent`)
+      if (!recentResponse.ok) throw new Error('Failed to fetch recent completions')
+      const recentData = await recentResponse.json()
+      
+      setRecentCompletions(recentData.recent || [])
+
+    } catch (err) {
+      console.error('Error fetching real data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchRealData()
+  }, [])
+
+  // Real-time updates every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setVerificationTasks(prev => prev.map(task => {
-        if (task.status === 'verifying' && task.progress < 100) {
-          const newProgress = Math.min(task.progress + Math.random() * 10, 100)
-          const newStatus = newProgress >= 100 ? 'completed' : 'verifying'
-          
-          // Update layer statuses based on progress
-          const updatedLayers = task.layers.map((layer, index) => {
-            const layerThreshold = (index + 1) * 20
-            if (newProgress >= layerThreshold) {
-              return { ...layer, status: 'completed' as const }
-            } else if (newProgress >= layerThreshold - 15) {
-              return { ...layer, status: 'running' as const }
-            }
-            return layer
-          })
-
-          return {
-            ...task,
-            progress: newProgress,
-            status: newStatus,
-            layers: updatedLayers,
-            estimatedTime: Math.max(0, task.estimatedTime - 0.5)
-          }
-        }
-        return task
-      }))
-    }, 1000)
+      fetchRealData()
+    }, 5000)
 
     return () => clearInterval(interval)
+  }, [])
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    let ws: WebSocket | null = null
+    
+    try {
+      ws = new WebSocket('ws://localhost:3003')
+      
+      ws.onopen = () => {
+        console.log('🔗 Connected to real-time verification updates')
+      }
+      
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          
+          switch (message.type) {
+            case 'intentSubmitted':
+              console.log('📨 New intent submitted:', message.data)
+              fetchRealData() // Refresh data
+              break
+              
+            case 'simulationProgress':
+              console.log('📊 Simulation progress:', message.data)
+              fetchRealData() // Refresh data
+              break
+              
+            case 'consensusReached':
+              console.log('🎯 Consensus reached:', message.data)
+              fetchRealData() // Refresh data
+              break
+          }
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err)
+        }
+      }
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+      
+      ws.onclose = () => {
+        console.log('🔌 WebSocket connection closed')
+      }
+      
+    } catch (err) {
+      console.error('Failed to connect to WebSocket:', err)
+    }
+
+    return () => {
+      if (ws) {
+        ws.close()
+      }
+    }
   }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'text-green-400'
-      case 'running': return 'text-orange-400' 
-      case 'pending': return 'text-neutral-500'
-      case 'failed': return 'text-red-400'
+      case 'analyzing': return 'text-orange-400' 
+      case 'approved': return 'text-green-400'
+      case 'blocked': return 'text-red-400'
       default: return 'text-neutral-400'
     }
   }
@@ -130,6 +183,46 @@ export default function AgentNetworkPage() {
     if (risk < 50) return 'text-yellow-400'
     if (risk < 80) return 'text-orange-400'
     return 'text-red-400'
+  }
+
+  const formatAddress = (address: string) => {
+    if (!address) return 'N/A'
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  const formatIntentId = (intentId: string) => {
+    if (!intentId) return 'N/A'
+    return `${intentId.slice(0, 8)}...`
+  }
+
+  if (loading && verificationTasks.length === 0) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-8 h-8 border border-orange-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-neutral-400">Loading real verification data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-4" />
+            <p className="text-red-400 mb-2">Failed to connect to simulator API</p>
+            <p className="text-neutral-500 text-sm mb-4">{error}</p>
+            <Button onClick={fetchRealData} variant="outline" size="sm">
+              Retry Connection
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -142,7 +235,7 @@ export default function AgentNetworkPage() {
         </div>
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-            {simulatorStats.active} Active Simulators
+            {simulatorStats.activeSimulators} Active Simulators
           </Badge>
         </div>
       </div>
@@ -154,7 +247,7 @@ export default function AgentNetworkPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-400">Active Simulators</p>
-                <p className="text-2xl font-bold text-green-400">{simulatorStats.active}</p>
+                <p className="text-2xl font-bold text-green-400">{simulatorStats.activeSimulators}</p>
               </div>
               <Zap className="w-8 h-8 text-green-400" />
             </div>
@@ -165,8 +258,8 @@ export default function AgentNetworkPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-400">Queued Tasks</p>
-                <p className="text-2xl font-bold text-yellow-400">{simulatorStats.queued}</p>
+                <p className="text-sm font-medium text-neutral-400">Active Intents</p>
+                <p className="text-2xl font-bold text-yellow-400">{simulatorStats.activeVerifications}</p>
               </div>
               <Clock className="w-8 h-8 text-yellow-400" />
             </div>
@@ -177,8 +270,8 @@ export default function AgentNetworkPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-400">Completed Today</p>
-                <p className="text-2xl font-bold text-blue-400">{simulatorStats.completed}</p>
+                <p className="text-sm font-medium text-neutral-400">Total Analyzed</p>
+                <p className="text-2xl font-bold text-blue-400">{simulatorStats.totalAnalyzed}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-blue-400" />
             </div>
@@ -189,10 +282,10 @@ export default function AgentNetworkPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-400">Avg Time</p>
-                <p className="text-2xl font-bold text-white">{simulatorStats.avgTime}s</p>
+                <p className="text-sm font-medium text-neutral-400">Threats Detected</p>
+                <p className="text-2xl font-bold text-red-400">{simulatorStats.totalThreats}</p>
               </div>
-              <Activity className="w-8 h-8 text-white" />
+              <AlertTriangle className="w-8 h-8 text-red-400" />
             </div>
           </CardContent>
         </Card>
@@ -211,114 +304,135 @@ export default function AgentNetworkPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {verificationTasks.map((task) => (
-                <Card key={task.id} className="bg-neutral-800 border-neutral-600">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          task.status === 'completed' ? 'bg-green-400' :
-                          task.status === 'verifying' ? 'bg-orange-400 animate-pulse' :
-                          task.status === 'failed' ? 'bg-red-400' : 'bg-neutral-500'
-                        }`} />
-                        <span className="text-sm font-mono text-white">{task.transactionHash}</span>
-                      </div>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${
-                          task.status === 'completed' ? 'text-green-400 border-green-500/20' :
-                          task.status === 'verifying' ? 'text-orange-400 border-orange-500/20' :
-                          task.status === 'failed' ? 'text-red-400 border-red-500/20' :
-                          'text-neutral-400 border-neutral-500/20'
-                        }`}
-                      >
-                        {task.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Progress Bar */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Simulator Progress:</span>
-                        <span className="text-white">
-                          {Math.floor(task.progress * task.layers.length / 100)}/{task.layers.length} Complete
-                        </span>
-                      </div>
-                      <Progress value={task.progress} className="h-2" />
-                    </div>
+              {verificationTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <Shield className="w-12 h-12 text-neutral-600 mx-auto mb-4" />
+                  <p className="text-neutral-400">No active verifications</p>
+                  <p className="text-neutral-500 text-sm">Submit an intent from Command Center to see real-time verification</p>
+                </div>
+              ) : (
+                verificationTasks.map((task) => {
+                  const avgRiskScore = task.simulatorResults.length > 0 
+                    ? Math.round(task.simulatorResults.reduce((sum, r) => sum + r.riskScore, 0) / task.simulatorResults.length)
+                    : 0
+                  
+                  return (
+                    <Card key={task.intentId} className="bg-neutral-800 border-neutral-600">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              task.status === 'completed' ? 'bg-green-400' :
+                              task.status === 'analyzing' ? 'bg-orange-400 animate-pulse' :
+                              'bg-neutral-500'
+                            }`} />
+                            <span className="text-sm font-mono text-white">{formatIntentId(task.intentId)}</span>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${getStatusColor(task.status)} border-current/20`}
+                          >
+                            {task.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* User and Target Info */}
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <span className="text-neutral-400">User: </span>
+                            <span className="text-white font-mono">{formatAddress(task.user)}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-400">Target: </span>
+                            <span className="text-white font-mono">{formatAddress(task.target)}</span>
+                          </div>
+                        </div>
 
-                    {/* Risk Score */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-neutral-400">Risk Score:</span>
-                        <span className={`font-bold ${getRiskColor(task.riskScore)}`}>
-                          {task.riskScore}/{task.maxRisk}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={(task.riskScore / task.maxRisk) * 100} 
-                        className="h-2"
-                      />
-                    </div>
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-neutral-400">Simulator Progress:</span>
+                            <span className="text-white">
+                              {task.simulatorResults.length}/2 Complete
+                            </span>
+                          </div>
+                          <Progress value={task.progress || 0} className="h-2" />
+                        </div>
 
-                    {/* Analysis Layers */}
-                    <div className="space-y-2">
-                      <span className="text-sm text-neutral-400">Analysis Layers:</span>
-                      <div className="space-y-1">
-                        {task.layers.map((layer, index) => (
-                          <div key={index} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              {layer.status === 'completed' ? (
-                                <CheckCircle className="w-3 h-3 text-green-400" />
-                              ) : layer.status === 'running' ? (
-                                <div className="w-3 h-3 border border-orange-400 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Clock className="w-3 h-3 text-neutral-500" />
-                              )}
-                              <span className={getStatusColor(layer.status)}>{layer.name}</span>
-                            </div>
-                            {layer.status === 'completed' && (
-                              <span className={`${getRiskColor(layer.risk)}`}>
-                                (Risk: {layer.risk})
+                        {/* Risk Score */}
+                        {avgRiskScore > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-neutral-400">Average Risk Score:</span>
+                              <span className={`font-bold ${getRiskColor(avgRiskScore)}`}>
+                                {avgRiskScore}/100
                               </span>
-                            )}
-                            {layer.status === 'running' && (
-                              <span className="text-orange-400">(Running...)</span>
-                            )}
-                            {layer.status === 'pending' && (
-                              <span className="text-neutral-500">(Pending...)</span>
+                            </div>
+                            <Progress 
+                              value={avgRiskScore} 
+                              className="h-2"
+                            />
+                          </div>
+                        )}
+
+                        {/* Simulator Results */}
+                        {task.simulatorResults.length > 0 && (
+                          <div className="space-y-2">
+                            <span className="text-sm text-neutral-400">Simulator Results:</span>
+                            <div className="space-y-1">
+                              {task.simulatorResults.map((result, index) => (
+                                <div key={index} className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle className="w-3 h-3 text-green-400" />
+                                    <span className="text-white font-mono">{formatAddress(result.simulator)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`${getRiskColor(result.riskScore)}`}>
+                                      Risk: {result.riskScore}
+                                    </span>
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${result.isRisky ? 'text-red-400 border-red-500/20' : 'text-green-400 border-green-500/20'}`}
+                                    >
+                                      {result.isRisky ? 'RISKY' : 'SAFE'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Consensus Result */}
+                        {task.consensus && (
+                          <div className="flex items-center justify-between pt-2 border-t border-neutral-700">
+                            <div className="text-xs">
+                              <span className="text-neutral-400">Final Result: </span>
+                              <span className={task.consensus.status === 'approved' ? 'text-green-400' : 'text-red-400'}>
+                                {task.consensus.status.toUpperCase()}
+                              </span>
+                            </div>
+                            {task.analysisTime && (
+                              <div className="text-xs text-neutral-400">
+                                Analysis time: {Math.round(task.analysisTime / 1000)}s
+                              </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        )}
 
-                    {/* Threats and Time */}
-                    <div className="flex items-center justify-between pt-2 border-t border-neutral-700">
-                      <div className="text-xs">
-                        <span className="text-neutral-400">Detected Threats: </span>
-                        <span className={task.threatsDetected > 0 ? 'text-red-400' : 'text-green-400'}>
-                          {task.threatsDetected}
-                        </span>
-                      </div>
-                      {task.status === 'verifying' && (
-                        <div className="text-xs text-neutral-400">
-                          Estimated time: {Math.max(0, task.estimatedTime)} seconds remaining
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Live Status */}
-                    {task.status === 'verifying' && (
-                      <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/20 rounded">
-                        <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-                        <span className="text-xs text-red-400">🔴 Live: Monitoring mempool...</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                        {/* Live Status */}
+                        {task.status === 'analyzing' && (
+                          <div className="flex items-center gap-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded">
+                            <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+                            <span className="text-xs text-orange-400">🔴 Live: Real SST Analysis in Progress...</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              )}
             </CardContent>
           </Card>
         </div>
@@ -352,25 +466,28 @@ export default function AgentNetworkPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {[
-                  { hash: "0x123...", time: "2s ago", risk: 5, status: "safe" },
-                  { hash: "0x456...", time: "8s ago", risk: 12, status: "safe" },
-                  { hash: "0x789...", time: "15s ago", risk: 78, status: "blocked" },
-                  { hash: "0xABC...", time: "23s ago", risk: 3, status: "safe" },
-                ].map((completion, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        completion.status === 'safe' ? 'bg-green-400' : 'bg-red-400'
-                      }`} />
-                      <span className="text-white font-mono">{completion.hash}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={getRiskColor(completion.risk)}>{completion.risk}</span>
-                      <span className="text-neutral-500">{completion.time}</span>
-                    </div>
+                {recentCompletions.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-neutral-500 text-xs">No recent completions</p>
                   </div>
-                ))}
+                ) : (
+                  recentCompletions.map((completion, index) => (
+                    <div key={index} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          completion.status === 'approved' ? 'bg-green-400' : 'bg-red-400'
+                        }`} />
+                        <span className="text-white font-mono">{formatIntentId(completion.intentId)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={getRiskColor(completion.riskScore)}>{completion.riskScore}</span>
+                        <span className="text-neutral-500">
+                          {Math.round((Date.now() - completion.timestamp) / 1000)}s ago
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

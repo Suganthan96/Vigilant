@@ -15,7 +15,7 @@ export interface ThreatDatabase$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {};
   readonly inputSourceName: "project/contracts/ThreatDatabase.sol";
-  readonly buildInfoId: "solc-0_8_20-200a5135c38667bb5b9fc97dd6c2555eede96509";
+  readonly buildInfoId: "solc-0_8_20-97063e54fbfffe41176295942b8edb9dc2663c8c";
 };
 
 import "hardhat/types/artifacts";
